@@ -1,0 +1,178 @@
+'use strict';
+
+var gulp = require('gulp');
+var Karma = require('karma').Server;
+var rimraf = require('gulp-rimraf');
+var sass = require('gulp-sass');
+var sourcemaps = require('gulp-sourcemaps');
+var watch = require('gulp-watch');
+var gutil = require('gulp-util');
+var ts = require('gulp-typescript');
+
+var htmlInject = require('./gulp-html-inject.js');
+var config = require('./config.js');
+var edgsTests = require('./edgs-tests');
+var paths = config.paths;
+var files = config.files;
+
+var browserSync = require('browser-sync');
+var reload = browserSync.reload;
+
+gulp.task('default', ['build']);
+
+gulp.task('build', ['css', 'js']);
+gulp.task('build-dev:js', ['js-silent'], function () {
+    gulp.src(files.scripts.bundle)
+        .pipe(gulp.dest(paths.target.js));
+});
+gulp.task('build-dev:css', ['css-silent'], function () {
+    gulp.src(paths.src.css + '*')
+        .pipe(gulp.dest(paths.target.css));
+});
+gulp.task('watch', function () {
+    gulp.start([
+        'build-dev:css',
+        'build-dev:js',
+        'test-unit:watch'
+    ]);
+    watch(files.styles, function () {
+        gulp.start('build-dev:css');
+    });
+    watch([
+        files.scripts.html,
+        files.scripts.src
+    ], function () {
+        gulp.start(['build-dev:js']);
+    });
+});
+gulp.task('watch-no-test', function () {
+    gulp.start([
+        'build-dev:css',
+        'build-dev:js'
+    ]);
+    watch(files.styles, function () {
+        gulp.start('build-dev:css');
+    });
+    watch([files.scripts.src, files.scripts.html], function () {
+        gulp.start(['build-dev:js']);
+    });
+});
+
+gulp.task('test', ['test-unit']);
+
+gulp.task('cleanup', function () {
+    return gulp.src([
+        paths.target.css,
+        paths.target.js,
+        paths.src.js
+    ], {read: false})
+        .pipe(rimraf());
+});
+gulp.task('css', function () {
+    return compileScss();
+});
+gulp.task('css-silent', function () {
+    return compileScss(true);
+});
+
+gulp.task('js', function () {
+    return compileTs();
+});
+gulp.task('js-silent', function () {
+    return compileTs(true);
+});
+
+gulp.task('test-unit-js', function () {
+    return compileUnitTs(files.tests.unit.src, paths.tests.unit);
+});
+gulp.task('test-unit', ['test-unit-js', 'js'], function (cb) {
+    runKarma(cb, true);
+});
+gulp.task('test-unit:watch', ['test-unit-js'], function (cb) {
+    watch(files.tests.unit.src, function (vinyl) {
+        var outputDir = vinyl.path.replace(/[^\\]+\.test\.ts$/, '');
+        return compileUnitTs(vinyl.path, outputDir);
+    });
+    runKarma(cb);
+});
+
+gulp.task('test-edgs', [], function (cb) {
+    edgsTests.run();
+});
+
+gulp.task('serve', ['build'], function () {
+    browserSync({
+        proxy: 'localhost:8080',
+        port: 8081,
+        //files: [paths.target.css + "**", paths.src.css + "**", paths.target.js + "**", paths.src.js + "**"],
+        open: false,
+        snippetOptions: {
+            // Provide a custom Regex for inserting the snippet.
+            rule: {
+                match: /<\/BROWSERSYNC>/i,
+                fn: function (snippet, match) {
+                    return snippet + match;
+                }
+            }
+        },
+        reloadDelay: 2000
+    });
+
+    gulp.watch(files.styles, ['build-dev:css']).on("change", function() {});
+    gulp.watch(files.scripts.src, ['js', reload]);
+});
+
+
+function compileScss(isSilent) {
+    return gulp.src(files.styles)
+        .pipe(sourcemaps.init())
+        .pipe(sass.sync().on('error', function (err) {
+            gutil.log(gutil.colors.red('(ERROR)'), 'SASS fails to compile');
+            sass.logError.call(this, err);
+            if (!isSilent) {
+                throw err;
+            }
+        }))
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(paths.src.css))
+        .pipe(reload({stream: true}));
+}
+function compileTs(isSilent) {
+    var tsResult = gulp.src(files.scripts.src)
+        .pipe(htmlInject())
+        .pipe(sourcemaps.init()) // for sourcemaps only
+        .pipe(ts({
+            noImplicitAny: true,
+            out: files.scripts.bundle
+        }))
+        .on('error', function (err) {
+            gutil.log(gutil.colors.red('(ERROR)'), 'Typescript error');
+            if (!isSilent) {
+                throw err;
+            }
+        });
+    return tsResult.js
+        .pipe(sourcemaps.write({
+            includeContent: false,
+            sourceRoot: '/ts'
+        })) // for sourcemaps only
+        .pipe(gulp.dest('.'));
+}
+function compileUnitTs(glob, outputDir) {
+    var tsResult = gulp.src(glob)
+        .pipe(sourcemaps.init())
+        .pipe(ts({
+            noImplicitAny: true,
+            removeComments: false,
+            inlineSourceMap: true
+        }));
+    return tsResult.js
+        .pipe(sourcemaps.write())
+        .pipe(gulp.dest(outputDir));
+}
+function runKarma(cb, singleRun) {
+    new Karma({
+        configFile: __dirname + '/../' + files.tests.karmaConfig,
+        singleRun: singleRun
+    }, cb).start();
+}
