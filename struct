@@ -1,0 +1,17 @@
+web/src/main
+  java
+  lib
+  resources
+    definitions
+  webapp
+    css
+    img
+    js
+    lib
+    scss
+    ts
+      main.ts
+      module.ts
+    WEB-INF
+    index.html
+    
