@@ -1,0 +1,26 @@
+Administrator@NazimSaifi-PC MINGW64 /c/dev/mygitprojects
+$ git clone https://github.com/nazimali01/hello-world.git
+Cloning into 'hello-world'...
+remote: Counting objects: 52, done.
+remote: Total 52 (delta 0), reused 0 (delta 0), pack-reused 52
+Unpacking objects: 100% (52/52), done.
+Checking connectivity... done.
+
+Administrator@NazimSaifi-PC MINGW64 /c/dev/mygitprojects
+$ ls
+hello-world/
+
+Administrator@NazimSaifi-PC MINGW64 /c/dev/mygitprojects
+$ git clone https://github.com/nazimali01/web_ui.git
+Cloning into 'web_ui'...
+remote: Counting objects: 3, done.
+remote: Total 3 (delta 0), reused 0 (delta 0), pack-reused 3
+Unpacking objects: 100% (3/3), done.
+Checking connectivity... done.
+
+Administrator@NazimSaifi-PC MINGW64 /c/dev/mygitprojects
+$ ls
+hello-world/  web_ui/
+
+Administrator@NazimSaifi-PC MINGW64 /c/dev/mygitprojects
+$
